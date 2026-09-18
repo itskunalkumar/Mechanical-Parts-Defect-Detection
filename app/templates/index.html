@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Defect Detection</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 500px; margin: 60px auto; text-align: center; }
+        .result { margin-top: 20px; padding: 15px; border-radius: 8px; }
+        .ok { background: #e6f7e6; color: #1a7a1a; }
+        .defective { background: #fdeaea; color: #b30000; }
+    </style>
+</head>
+<body>
+    <h2>🔧 Mechanical Parts Defect Detection</h2>
+    <p>Upload a casting/part image to check for defects.</p>
+
+    <form action="/predict-ui" method="post" enctype="multipart/form-data">
+        <input type="file" name="file" accept="image/*" required>
+        <br><br>
+        <button type="submit">Check for Defect</button>
+    </form>
+
+    {% if result %}
+    <div class="result {{ 'ok' if result.label == 'OK' else 'defective' }}">
+        <h3>Result: {{ result.label }}</h3>
+        <p>Confidence: {{ result.confidence }}%</p>
+    </div>
+    {% endif %}
+</body>
+</html>
