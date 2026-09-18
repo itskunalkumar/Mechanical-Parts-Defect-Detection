@@ -3,6 +3,5 @@ tf_env/
 __pycache__/
 *.pyc
 data/casting_data/
-artifacts/*.h5
 logs/
 .vscode/
