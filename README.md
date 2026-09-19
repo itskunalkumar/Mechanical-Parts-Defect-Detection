@@ -133,3 +133,16 @@ Requires repo secrets `DOCKERHUB_USERNAME` and `DOCKERHUB_TOKEN`.
 - [ ] Multi-class defect classification
 - [ ] Data drift detection comparing live traffic to training distribution
 - [ ] Auto-deploy to Render triggered directly from the CI/CD pipeline
+
+
+## 👤 Author
+
+**Kunal Kumar**
+Mechanical Engineering graduate transitioning into Data Science & ML Engineering
+🔗 [GitHub](https://github.com/itskunalkumar)
+
+---
+
+⭐ If you found this project useful, consider giving it a star!
+
+
