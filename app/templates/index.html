@@ -4,12 +4,14 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AURA — AI Cast Inspection Dashboard</title>
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA2NCA2NCI+CjxkZWZzPjxsaW5lYXJHcmFkaWVudCBpZD0iZyIgeDE9IjAiIHkxPSIwIiB4Mj0iNjQiIHkyPSI2NCI+CjxzdG9wIG9mZnNldD0iMCIgc3RvcC1jb2xvcj0iIzAwZjBmZiIvPjxzdG9wIG9mZnNldD0iMSIgc3RvcC1jb2xvcj0iIzAwNzJmZiIvPgo8L2xpbmVhckdyYWRpZW50PjwvZGVmcz4KPHJlY3Qgd2lkdGg9IjY0IiBoZWlnaHQ9IjY0IiByeD0iMTQiIGZpbGw9InVybCgjZykiLz4KPHRleHQgeD0iMzIiIHk9IjQzIiBmb250LWZhbWlseT0iQXJpYWwsIEhlbHZldGljYSwgc2Fucy1zZXJpZiIgZm9udC13ZWlnaHQ9IjgwMCIgZm9udC1zaXplPSIyNiIgZmlsbD0iIzAzMDcxMiIgdGV4dC1hbmNob3I9Im1pZGRsZSI+UUM8L3RleHQ+Cjwvc3ZnPg==">
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Lucide Icons -->
     <script src="https://unpkg.com/lucide@latest"></script>
     <!-- Three.js for 3D Mechanical Render -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
     <!-- Google Font Inter & Rajdhani for Sci-Fi HUD look -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Rajdhani:wght@500;600;700&display=swap" rel="stylesheet">
@@ -1033,11 +1035,92 @@
             document.getElementById(modalId).classList.add('hidden');
         }
 
-        // NOTE: PDF export is not wired to a real report generator yet -- this
-        // alert is a placeholder. Wire it to a real endpoint before relying on it.
+        // Real PDF export using jsPDF (client-side, no backend needed)
         function downloadReportPdf() {
-            alert('PDF export is not implemented yet — this is a placeholder.');
-            closeModal('reportModal');
+            if (!lastResult) {
+                alert('Run an inspection first — there is no result to export yet.');
+                return;
+            }
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF({ unit: 'pt', format: 'a4' });
+            const isDefective = lastResult.label === 'Defective';
+            const margin = 48;
+            let y = margin;
+
+            // Header
+            doc.setFillColor(10, 14, 20);
+            doc.rect(0, 0, 595, 90, 'F');
+            doc.setTextColor(255, 255, 255);
+            doc.setFont('helvetica', 'bold');
+            doc.setFontSize(20);
+            doc.text('AURA — Casting Inspection Report', margin, 45);
+            doc.setFont('helvetica', 'normal');
+            doc.setFontSize(10);
+            doc.setTextColor(150, 200, 220);
+            doc.text('Generated ' + lastResult.timestamp.toLocaleString(), margin, 65);
+
+            y = 120;
+            doc.setTextColor(20, 20, 20);
+            doc.setFontSize(11);
+
+            const rows = [
+                ['Image File', lastResult.fileName],
+                ['Model', 'MobileNetV2 (binary classifier)'],
+                ['Confidence', lastResult.confidence + '%'],
+                ['Overall Decision', isDefective ? 'REJECT / MANUAL REVIEW' : 'PASS TO ASSEMBLY'],
+            ];
+            rows.forEach(([label, value]) => {
+                doc.setFont('helvetica', 'bold');
+                doc.text(label + ':', margin, y);
+                doc.setFont('helvetica', 'normal');
+                if (label === 'Overall Decision') {
+                    doc.setTextColor(...(isDefective ? [200, 40, 40] : [30, 140, 90]));
+                } else {
+                    doc.setTextColor(20, 20, 20);
+                }
+                doc.text(String(value), margin + 140, y);
+                doc.setTextColor(20, 20, 20);
+                y += 22;
+            });
+
+            y += 10;
+            doc.setDrawColor(210, 210, 210);
+            doc.line(margin, y, 595 - margin, y);
+            y += 24;
+
+            doc.setFont('helvetica', 'bold');
+            doc.setFontSize(12);
+            doc.text('Summary', margin, y);
+            y += 18;
+            doc.setFont('helvetica', 'normal');
+            doc.setFontSize(10.5);
+            const summary = isDefective
+                ? `The model classified this casting as Defective with ${lastResult.confidence}% confidence. See the Grad-CAM heatmap below for the region that most influenced this decision.`
+                : `The model classified this casting as OK with ${lastResult.confidence}% confidence. No defect region was flagged.`;
+            const summaryLines = doc.splitTextToSize(summary, 595 - margin * 2);
+            doc.text(summaryLines, margin, y);
+            y += summaryLines.length * 14 + 10;
+
+            const note = 'Note: this model is a binary classifier (Defective / OK). It does not measure crack depth, porosity %, or dimensional tolerances — only the verdict, a confidence score, and the Grad-CAM attention heatmap below are real model output.';
+            doc.setTextColor(120, 120, 120);
+            doc.setFontSize(9);
+            const noteLines = doc.splitTextToSize(note, 595 - margin * 2);
+            doc.text(noteLines, margin, y);
+            y += noteLines.length * 12 + 20;
+            doc.setTextColor(20, 20, 20);
+
+            if (lastResult.heatmap_base64) {
+                doc.setFont('helvetica', 'bold');
+                doc.setFontSize(12);
+                doc.text('Grad-CAM Heatmap', margin, y);
+                y += 12;
+                try {
+                    const imgW = 260, imgH = 260;
+                    doc.addImage('data:image/png;base64,' + lastResult.heatmap_base64, 'PNG', margin, y, imgW, imgH);
+                } catch (e) { /* image embed failed silently, PDF still generated without it */ }
+            }
+
+            doc.save(`inspection_report_${lastResult.fileName.replace(/\.[^.]+$/, '')}.pdf`);
         }
 
         // Initialize 3D viewport on window load
