@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AURA — Line Monitoring</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Rajdhani:wght@500;600;700&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: { sans: ['Inter', 'sans-serif'], tech: ['Rajdhani', 'sans-serif'] },
+                    colors: {
+                        aura: { bg: '#050a14', cyan: '#00f0ff', blue: '#0072ff', red: '#ff2a5f', yellow: '#ffb700' }
+                    },
+                    boxShadow: { glow: '0 0 20px rgba(0, 240, 255, 0.35)', 'glow-red': '0 0 20px rgba(255, 42, 95, 0.5)' }
+                }
+            }
+        }
+    </script>
+    <style>
+        body { background-color: #030712; color: #f3f4f6; }
+        .glass-panel {
+            background: linear-gradient(135deg, rgba(13, 27, 46, 0.7) 0%, rgba(6, 14, 26, 0.85) 100%);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(0, 225, 255, 0.18);
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.5);
+        }
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: rgba(5, 10, 20, 0.8); }
+        ::-webkit-scrollbar-thumb { background: rgba(0, 210, 255, 0.3); border-radius: 3px; }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col font-sans">
+
+    <header class="w-full z-40 border-b border-cyan-900/40 bg-aura-bg/80 backdrop-blur-md sticky top-0">
+        <div class="max-w-[1700px] mx-auto px-4 lg:px-8 h-20 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <div class="relative w-11 h-11 rounded-xl bg-gradient-to-br from-aura-cyan to-blue-600 flex items-center justify-center p-0.5 shadow-glow">
+                    <div class="w-full h-full bg-slate-950 rounded-[10px] flex items-center justify-center">
+                        <span class="text-aura-cyan font-tech font-bold text-sm">QC</span>
+                    </div>
+                </div>
+                <div>
+                    <div class="flex items-center gap-2">
+                        <h1 class="font-tech text-2xl font-bold tracking-wider text-white">AURA</h1>
+                        <span class="text-xs px-2 py-0.5 rounded bg-aura-cyan/10 border border-aura-cyan/40 text-aura-cyan font-tech tracking-widest">AI CAST INSPECTION</span>
+                    </div>
+                    <p class="text-[10px] text-cyan-300/60 font-medium tracking-widest uppercase">Mechanical Quality Assurance v4.2</p>
+                </div>
+            </div>
+            <nav class="hidden md:flex items-center space-x-1 lg:space-x-2 font-tech tracking-wide text-sm">
+                <a href="/" class="px-4 py-2 rounded-lg text-gray-300 hover:text-white hover:bg-white/5 transition-all">Inspection</a>
+                <a href="/dashboard" class="px-4 py-2 rounded-lg text-white font-semibold bg-aura-cyan/10 border border-aura-cyan/40 shadow-glow transition-all">Monitoring</a>
+                <a href="/docs" target="_blank" class="px-4 py-2 rounded-lg text-gray-300 hover:text-white hover:bg-white/5 transition-all flex items-center gap-1.5">
+                    <span>API Docs</span>
+                    <svg class="w-3.5 h-3.5 text-cyan-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><path d="M15 3h6v6"/><path d="M10 14L21 3"/></svg>
+                </a>
+            </nav>
+            <a href="/" class="relative group overflow-hidden rounded-full p-px font-semibold text-xs uppercase tracking-wider">
+                <span class="absolute inset-0 bg-gradient-to-r from-aura-cyan via-blue-500 to-aura-cyan rounded-full"></span>
+                <span class="relative px-5 py-2.5 rounded-full bg-slate-950 flex items-center gap-2 group-hover:bg-slate-900">
+                    <span class="text-white font-tech tracking-wider text-sm">New Inspection</span>
+                </span>
+            </a>
+        </div>
+    </header>
+
+    <main class="flex-1 max-w-[1700px] w-full mx-auto p-4 lg:p-8 relative">
+        <div class="absolute inset-0 bg-[linear-gradient(to_right,#00d2ff0a_1px,transparent_1px),linear-gradient(to_bottom,#00d2ff0a_1px,transparent_1px)] bg-[size:32px_32px] pointer-events-none -z-10"></div>
+
+        <div class="flex items-center gap-2 mb-1">
+            <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+            <span class="text-[11px] font-tech tracking-widest text-aura-cyan uppercase">PRODUCTION LINE 01 &middot; LIVE</span>
+        </div>
+        <h2 class="text-3xl font-tech font-bold text-white tracking-wide mb-8">Line Monitoring</h2>
+
+        <div class="grid grid-cols-2 lg:grid-cols-5 gap-4 mb-10">
+            <div class="glass-panel rounded-2xl p-5">
+                <div class="text-3xl font-tech font-bold text-aura-cyan">{{ stats.total }}</div>
+                <div class="text-xs text-slate-400 mt-1 uppercase tracking-wide">Total Inspections</div>
+            </div>
+            <div class="glass-panel rounded-2xl p-5">
+                <div class="text-3xl font-tech font-bold text-aura-red">{{ stats.by_label.get('Defective', 0) }}</div>
+                <div class="text-xs text-slate-400 mt-1 uppercase tracking-wide">Defective</div>
+            </div>
+            <div class="glass-panel rounded-2xl p-5">
+                <div class="text-3xl font-tech font-bold text-emerald-400">{{ stats.by_label.get('OK', 0) }}</div>
+                <div class="text-xs text-slate-400 mt-1 uppercase tracking-wide">Passed</div>
+            </div>
+            <div class="glass-panel rounded-2xl p-5">
+                <div class="text-3xl font-tech font-bold text-aura-cyan">{{ stats.avg_confidence }}%</div>
+                <div class="text-xs text-slate-400 mt-1 uppercase tracking-wide">Avg. Confidence</div>
+            </div>
+            <div class="glass-panel rounded-2xl p-5 {{ 'border-aura-red/40' if stats.needs_review_count > 0 else '' }}">
+                <div class="text-3xl font-tech font-bold {{ 'text-aura-red' if stats.needs_review_count > 0 else 'text-slate-500' }}">{{ stats.needs_review_count }}</div>
+                <div class="text-xs text-slate-400 mt-1 uppercase tracking-wide">Flagged for Review</div>
+            </div>
+        </div>
+
+        <div class="text-[11px] font-tech text-slate-400 uppercase tracking-widest mb-3">Recent Inspections</div>
+        <div class="glass-panel rounded-2xl overflow-hidden">
+            <table class="w-full text-left text-sm">
+                <thead class="bg-slate-900/60 text-slate-400 font-tech text-xs uppercase tracking-wide">
+                    <tr>
+                        <th class="p-4">Timestamp (UTC)</th>
+                        <th class="p-4">Verdict</th>
+                        <th class="p-4">Confidence</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-800/80 font-mono text-xs">
+                    {% for row in stats.recent %}
+                    <tr class="hover:bg-white/5 transition-colors">
+                        <td class="p-4 text-slate-400">{{ row[0] }}</td>
+                        <td class="p-4">
+                            {% if row[1] == 'OK' %}
+                            <span class="px-3 py-1 rounded-full text-xs font-tech font-bold bg-emerald-950/60 text-emerald-400 border border-emerald-800/50">OK</span>
+                            {% else %}
+                            <span class="px-3 py-1 rounded-full text-xs font-tech font-bold bg-rose-950/60 text-rose-400 border border-rose-800/50">DEFECTIVE</span>
+                            {% endif %}
+                        </td>
+                        <td class="p-4 text-slate-300">{{ row[2] }}%</td>
+                    </tr>
+                    {% else %}
+                    <tr><td colspan="3" class="p-4 text-slate-500">No inspections logged yet.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </main>
+
+</body>
+</html>

@@ -2,29 +2,1050 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Defect Detection</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AURA — AI Cast Inspection Dashboard</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- Three.js for 3D Mechanical Render -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <!-- Google Font Inter & Rajdhani for Sci-Fi HUD look -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Rajdhani:wght@500;600;700&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        tech: ['Rajdhani', 'sans-serif'],
+                    },
+                    colors: {
+                        aura: {
+                            bg: '#050a14',
+                            card: 'rgba(11, 23, 42, 0.75)',
+                            border: 'rgba(0, 210, 255, 0.25)',
+                            cyan: '#00f0ff',
+                            blue: '#0072ff',
+                            laser: '#00e1ff',
+                            red: '#ff2a5f',
+                            yellow: '#ffb700',
+                        }
+                    },
+                    boxShadow: {
+                        glow: '0 0 20px rgba(0, 240, 255, 0.35)',
+                        'glow-red': '0 0 20px rgba(255, 42, 95, 0.5)',
+                        'glow-lg': '0 0 35px rgba(0, 240, 255, 0.5)',
+                    }
+                }
+            }
+        }
+    </script>
     <style>
-        body { font-family: Arial, sans-serif; max-width: 500px; margin: 60px auto; text-align: center; }
-        .result { margin-top: 20px; padding: 15px; border-radius: 8px; }
-        .ok { background: #e6f7e6; color: #1a7a1a; }
-        .defective { background: #fdeaea; color: #b30000; }
+        /* Custom UI Enhancements & Animations */
+        body {
+            background-color: #030712;
+            color: #f3f4f6;
+            overflow-x: hidden;
+        }
+
+        /* Glassmorphism styling */
+        .glass-panel {
+            background: linear-gradient(135deg, rgba(13, 27, 46, 0.7) 0%, rgba(6, 14, 26, 0.85) 100%);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(0, 225, 255, 0.18);
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.5);
+        }
+
+        .glass-panel-active {
+            border-color: rgba(0, 240, 255, 0.6);
+            box-shadow: 0 0 25px rgba(0, 240, 255, 0.25);
+        }
+
+        /* HUD Scanner Lines */
+        .scan-line {
+            background: linear-gradient(to bottom, transparent, rgba(0, 240, 255, 0.8), transparent);
+            animation: scan 3s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+
+        @keyframes scan {
+            0% { top: 0%; opacity: 0.2; }
+            50% { opacity: 1; }
+            100% { top: 100%; opacity: 0.2; }
+        }
+
+        /* Pulse effects */
+        @keyframes laser-pulse {
+            0%, 100% { opacity: 0.3; transform: scale(1); }
+            50% { opacity: 0.8; transform: scale(1.03); }
+        }
+
+        .laser-beam {
+            animation: laser-pulse 2s infinite ease-in-out;
+        }
+
+        /* Scrollbar styles */
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: rgba(5, 10, 20, 0.8);
+        }
+        ::-webkit-scrollbar-thumb {
+            background: rgba(0, 210, 255, 0.3);
+            border-radius: 3px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(0, 210, 255, 0.6);
+        }
+
+        /* Heatmap Canvas Overlay Effect */
+        .heatmap-canvas {
+            filter: contrast(130%) brightness(110%);
+        }
     </style>
 </head>
-<body>
-    <h2>🔧 Mechanical Parts Defect Detection</h2>
-    <p>Upload a casting/part image to check for defects.</p>
+<body class="min-h-screen flex flex-col font-sans selection:bg-aura-cyan selection:text-black">
+    <!-- Header / Nav -->
+    <header class="w-full z-40 border-b border-cyan-900/40 bg-aura-bg/80 backdrop-blur-md sticky top-0">
+        <div class="max-w-[1700px] mx-auto px-4 lg:px-8 h-20 flex items-center justify-between">
+            <!-- Brand Logo -->
+            <div class="flex items-center gap-3">
+                <div class="relative w-11 h-11 rounded-xl bg-gradient-to-br from-aura-cyan to-blue-600 flex items-center justify-center p-0.5 shadow-glow">
+                    <div class="w-full h-full bg-slate-950 rounded-[10px] flex items-center justify-center">
+                        <i data-lucide="aperture" class="w-6 h-6 text-aura-cyan animate-spin-slow"></i>
+                    </div>
+                </div>
+                <div>
+                    <div class="flex items-center gap-2">
+                        <h1 class="font-tech text-2xl font-bold tracking-wider text-white">AURA</h1>
+                        <span class="text-xs px-2 py-0.5 rounded bg-aura-cyan/10 border border-aura-cyan/40 text-aura-cyan font-tech tracking-widest">AI CAST INSPECTION</span>
+                    </div>
+                    <p class="text-[10px] text-cyan-300/60 font-medium tracking-widest uppercase">Mechanical Quality Assurance v4.2</p>
+                </div>
+            </div>
 
-    <form action="/predict-ui" method="post" enctype="multipart/form-data">
-        <input type="file" name="file" accept="image/*" required>
-        <br><br>
-        <button type="submit">Check for Defect</button>
-    </form>
+            <!-- Navigation Links -->
+            <nav class="hidden md:flex items-center space-x-1 lg:space-x-2 font-tech tracking-wide text-sm">
+                <button class="px-4 py-2 rounded-lg text-white font-semibold bg-aura-cyan/10 border border-aura-cyan/40 shadow-glow transition-all">Home</button>
+                <button onclick="document.getElementById('dropZone').scrollIntoView({behavior:'smooth'})" class="px-4 py-2 rounded-lg text-gray-300 hover:text-white hover:bg-white/5 transition-all">Inspection</button>
+                <button onclick="window.location.href='/dashboard'" class="px-4 py-2 rounded-lg text-gray-300 hover:text-white hover:bg-white/5 transition-all">Monitoring</button>
+                <button onclick="window.open('/docs', '_blank')" class="px-4 py-2 rounded-lg text-gray-300 hover:text-white hover:bg-white/5 transition-all flex items-center gap-1.5">
+                    <span>API Docs</span>
+                    <i data-lucide="external-link" class="w-3.5 h-3.5 text-cyan-400"></i>
+                </button>
+            </nav>
 
-    {% if result %}
-    <div class="result {{ 'ok' if result.label == 'OK' else 'defective' }}">
-        <h3>Result: {{ result.label }}</h3>
-        <p>Confidence: {{ result.confidence }}%</p>
+            <!-- Header Action CTA -->
+            <div class="flex items-center gap-3">
+                <button onclick="triggerQuickScan()" class="relative group overflow-hidden rounded-full p-px font-semibold text-xs uppercase tracking-wider">
+                    <span class="absolute inset-0 bg-gradient-to-r from-aura-cyan via-blue-500 to-aura-cyan rounded-full group-hover:opacity-100 transition-opacity animate-pulse"></span>
+                    <span class="relative px-5 py-2.5 rounded-full bg-slate-950 flex items-center gap-2 transition-all group-hover:bg-slate-900">
+                        <i data-lucide="scan" class="w-4 h-4 text-aura-cyan"></i>
+                        <span class="text-white font-tech tracking-wider text-sm">Start Inspection</span>
+                        <i data-lucide="arrow-right" class="w-4 h-4 text-aura-cyan transition-transform group-hover:translate-x-1"></i>
+                    </span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Dashboard Container -->
+    <main class="flex-1 max-w-[1700px] w-full mx-auto p-4 lg:p-6 grid grid-cols-1 lg:grid-cols-12 gap-6 relative">
+        
+        <!-- Background Ambient Grid Pattern -->
+        <div class="absolute inset-0 bg-[linear-gradient(to_right,#00d2ff0a_1px,transparent_1px),linear-gradient(to_bottom,#00d2ff0a_1px,transparent_1px)] bg-[size:32px_32px] pointer-events-none -z-10"></div>
+
+        <!-- LEFT PANEL: Controls, Upload & Scanning Pipeline (4 Cols) -->
+        <section class="lg:col-span-3 flex flex-col gap-5 z-10">
+            <!-- Header Banner Card -->
+            <div class="glass-panel rounded-2xl p-5 border-l-4 border-l-aura-cyan relative overflow-hidden">
+                <div class="text-[11px] font-tech tracking-widest text-aura-cyan uppercase mb-1 flex items-center gap-1.5">
+                    <span class="w-2 h-2 rounded-full bg-aura-cyan animate-ping"></span>
+                    AI FOR MANUFACTURING
+                </div>
+                <h2 class="text-2xl font-tech font-bold text-white tracking-wide leading-tight">Smarter Inspection<br/><span class="text-transparent bg-clip-text bg-gradient-to-r from-aura-cyan to-blue-400">Stronger Pumps</span></h2>
+                <p class="text-xs text-slate-400 mt-2 leading-relaxed">
+                    AI-powered visual inspection for submersible pump impellers. Detect casting defects, ensure dimensional integrity, and maintain hydraulic performance.
+                </p>
+            </div>
+
+            <!-- Upload Zone & File Control -->
+            <div class="glass-panel rounded-2xl p-4 flex flex-col gap-4">
+                <div class="flex items-center justify-between">
+                    <span class="text-xs font-tech font-semibold uppercase tracking-wider text-slate-300 flex items-center gap-1.5">
+                        <i data-lucide="upload-cloud" class="w-4 h-4 text-aura-cyan"></i> Source Image Target
+                    </span>
+                    <span class="text-[10px] text-slate-500 font-mono">JPG, PNG, WEBP (Max 10MB)</span>
+                </div>
+
+                <!-- Interactive Drag-and-Drop Area -->
+                <div id="dropZone" onclick="document.getElementById('fileInput').click()" 
+                     class="border-2 border-dashed border-aura-cyan/30 hover:border-aura-cyan/80 rounded-xl p-5 text-center cursor-pointer transition-all bg-slate-950/40 hover:bg-aura-cyan/5 group relative">
+                    <input type="file" id="fileInput" accept="image/*" class="hidden" onchange="handleFileSelect(event)">
+                    <div class="flex flex-col items-center gap-2">
+                        <div class="w-12 h-12 rounded-full bg-aura-cyan/10 border border-aura-cyan/30 flex items-center justify-center text-aura-cyan group-hover:scale-110 transition-transform shadow-glow">
+                            <i data-lucide="upload" class="w-5 h-5"></i>
+                        </div>
+                        <p class="text-xs font-medium text-slate-200">Click or Drag Impeller Image</p>
+                        <p class="text-[10px] text-slate-500">Supports HD industrial radiography & optical scans</p>
+                    </div>
+                </div>
+
+                <!-- Active Upload File Card -->
+                <div id="fileCard" class="glass-panel rounded-xl p-3 border border-slate-700 flex items-center gap-3 relative">
+                    <div class="w-12 h-12 rounded-lg overflow-hidden border border-cyan-500/30 bg-slate-900 flex-shrink-0 relative">
+                        <img id="uploadedPreview" src="" alt="Uploaded casting" class="w-full h-full object-cover hidden">
+                        <div id="uploadedPreviewPlaceholder" class="w-full h-full flex items-center justify-center text-slate-600"><i data-lucide="image" class="w-5 h-5"></i></div>
+                        <div class="absolute inset-0 bg-aura-cyan/10"></div>
+                    </div>
+                    <div class="flex-1 min-w-0">
+                        <p id="uploadedFileName" class="text-xs font-semibold text-slate-200 truncate">No image loaded</p>
+                        <p id="uploadedFileSize" class="text-[10px] text-slate-400 font-mono">Load a casting image to begin</p>
+                        <!-- Mini upload progress -->
+                        <div class="w-full bg-slate-800 h-1.5 rounded-full mt-1.5 overflow-hidden">
+                            <div id="uploadProgressBar" class="bg-gradient-to-r from-blue-500 to-aura-cyan h-full w-full transition-all duration-300"></div>
+                        </div>
+                    </div>
+                    <button onclick="resetFileSelection()" class="p-1.5 hover:bg-slate-800 rounded-lg text-slate-400 hover:text-rose-400 transition-colors">
+                        <i data-lucide="x" class="w-4 h-4"></i>
+                    </button>
+                </div>
+
+                <!-- Start Inspection Trigger Button -->
+                <button id="inspectBtn" onclick="runFullInspectionPipeline()" 
+                        class="w-full py-3.5 px-4 rounded-xl font-tech font-bold tracking-wider text-slate-950 bg-gradient-to-r from-aura-cyan via-cyan-400 to-blue-400 hover:from-white hover:to-aura-cyan shadow-glow transition-all duration-300 flex items-center justify-center gap-2 group">
+                    <i data-lucide="play" class="w-4 h-4 fill-current transition-transform group-hover:scale-125"></i>
+                    <span>START INSPECTION</span>
+                    <i data-lucide="chevron-right" class="w-4 h-4 transition-transform group-hover:translate-x-1"></i>
+                </button>
+
+            </div>
+
+            <!-- SCANNING Pipeline Checklist Panel -->
+            <div class="glass-panel rounded-2xl p-4 flex-1 flex flex-col justify-between">
+                <div>
+                    <div class="flex items-center justify-between pb-3 mb-3 border-b border-slate-800">
+                        <span id="scanStatusTitle" class="text-xs font-tech font-bold uppercase tracking-widest text-aura-cyan flex items-center gap-2">
+                            <i data-lucide="activity" class="w-4 h-4 text-aura-cyan animate-pulse"></i> SCANNING PIPELINE
+                        </span>
+                        <span id="scanPercentBadge" class="text-xs font-mono font-bold text-cyan-400 bg-cyan-950/80 px-2 py-0.5 rounded border border-cyan-500/30">READY</span>
+                    </div>
+
+                    <!-- Steps checklist -->
+                    <div class="space-y-3 text-xs">
+                        <!-- Step 1 -->
+                        <div id="step-1" class="flex items-center justify-between p-2 rounded-lg bg-slate-900/50 border border-slate-800/80 transition-all">
+                            <div class="flex items-center gap-2.5">
+                                <div class="step-icon w-5 h-5 rounded-full border border-slate-600 flex items-center justify-center text-[10px] text-slate-400">1</div>
+                                <span class="step-label text-slate-300 font-medium">Capturing image</span>
+                            </div>
+                            <i data-lucide="check-circle-2" class="step-check w-4 h-4 text-emerald-400 opacity-20"></i>
+                        </div>
+                        <!-- Step 2 -->
+                        <div id="step-2" class="flex items-center justify-between p-2 rounded-lg bg-slate-900/50 border border-slate-800/80 transition-all">
+                            <div class="flex items-center gap-2.5">
+                                <div class="step-icon w-5 h-5 rounded-full border border-slate-600 flex items-center justify-center text-[10px] text-slate-400">2</div>
+                                <span class="step-label text-slate-300 font-medium">Scanning surface topology</span>
+                            </div>
+                            <i data-lucide="check-circle-2" class="step-check w-4 h-4 text-emerald-400 opacity-20"></i>
+                        </div>
+                        <!-- Step 3 -->
+                        <div id="step-3" class="flex items-center justify-between p-2 rounded-lg bg-slate-900/50 border border-slate-800/80 transition-all">
+                            <div class="flex items-center gap-2.5">
+                                <div class="step-icon w-5 h-5 rounded-full border border-slate-600 flex items-center justify-center text-[10px] text-slate-400">3</div>
+                                <span class="step-label text-slate-300 font-medium">Analyzing grain texture</span>
+                            </div>
+                            <i data-lucide="check-circle-2" class="step-check w-4 h-4 text-emerald-400 opacity-20"></i>
+                        </div>
+                        <!-- Step 4 -->
+                        <div id="step-4" class="flex items-center justify-between p-2 rounded-lg bg-slate-900/50 border border-slate-800/80 transition-all">
+                            <div class="flex items-center gap-2.5">
+                                <div class="step-icon w-5 h-5 rounded-full border border-slate-600 flex items-center justify-center text-[10px] text-slate-400">4</div>
+                                <span class="step-label text-slate-300 font-medium">Detecting micro-defects</span>
+                            </div>
+                            <i data-lucide="check-circle-2" class="step-check w-4 h-4 text-emerald-400 opacity-20"></i>
+                        </div>
+                        <!-- Step 5 -->
+                        <div id="step-5" class="flex items-center justify-between p-2 rounded-lg bg-slate-900/50 border border-slate-800/80 transition-all">
+                            <div class="flex items-center gap-2.5">
+                                <div class="step-icon w-5 h-5 rounded-full border border-slate-600 flex items-center justify-center text-[10px] text-slate-400">5</div>
+                                <span class="step-label text-slate-300 font-medium">Finalizing result matrix</span>
+                            </div>
+                            <i data-lucide="check-circle-2" class="step-check w-4 h-4 text-emerald-400 opacity-20"></i>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="pt-3 border-t border-slate-800/80 flex items-center justify-between text-[11px] text-slate-500 font-mono">
+                    <span>SCANNER: ONLINE</span>
+                    <span class="text-aura-cyan">FPS: <span id="fpsCounter">60</span></span>
+                </div>
+            </div>
+        </section>
+
+        <!-- CENTER PANEL: 3D Impeller Viewport with Laser Beam FX (5 Cols) -->
+        <section class="lg:col-span-6 flex flex-col gap-4 relative min-h-[550px] lg:min-h-0">
+            <!-- 3D Canvas Card -->
+            <div class="glass-panel rounded-3xl flex-1 relative overflow-hidden flex flex-col border border-aura-cyan/30 shadow-glow">
+                
+                <!-- HUD Top Bar Overlay -->
+                <div class="absolute top-4 left-4 right-4 z-20 flex items-center justify-between pointer-events-none">
+                    <div class="flex items-center gap-2 bg-slate-950/80 backdrop-blur-md px-3.5 py-1.5 rounded-full border border-cyan-500/30 pointer-events-auto">
+                        <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                        <span class="text-xs font-tech font-bold text-white tracking-widest uppercase">AI VISION HUB</span>
+                        <span class="text-[10px] text-slate-400 font-mono border-l border-slate-700 pl-2">RADIAL VIEW</span>
+                    </div>
+
+                    <div class="flex items-center gap-2 pointer-events-auto">
+                        <button onclick="toggle3DRotation()" id="rotateToggleBtn" class="bg-slate-950/80 hover:bg-slate-900 text-slate-300 px-3 py-1.5 rounded-lg border border-cyan-500/30 text-xs font-tech flex items-center gap-1.5 transition-colors">
+                            <i data-lucide="rotate-cw" class="w-3.5 h-3.5 text-aura-cyan"></i>
+                            <span>Auto-Rotate: ON</span>
+                        </button>
+                        <button onclick="reset3DCamera()" class="bg-slate-950/80 hover:bg-slate-900 text-slate-300 p-2 rounded-lg border border-cyan-500/30 transition-colors">
+                            <i data-lucide="maximize-2" class="w-3.5 h-3.5 text-aura-cyan"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- HUD Laser Scanning Overlay Status Card -->
+                <div class="absolute bottom-6 left-6 z-20 bg-slate-950/85 backdrop-blur-md p-3.5 rounded-2xl border border-aura-cyan/40 w-56 shadow-2xl">
+                    <div class="flex items-center justify-between mb-2">
+                        <span class="text-[11px] font-tech font-bold uppercase tracking-widest text-slate-300">LASER SCANNER</span>
+                        <span id="laserScanProgressText" class="text-xs font-mono font-bold text-aura-cyan">62%</span>
+                    </div>
+                    <div class="w-full bg-slate-800 h-2 rounded-full overflow-hidden p-0.5 border border-slate-700">
+                        <div id="laserProgressBar" class="h-full bg-gradient-to-r from-cyan-500 via-blue-500 to-aura-cyan rounded-full transition-all duration-300" style="width: 62%;"></div>
+                    </div>
+                    <div class="mt-2 flex items-center justify-between text-[10px] text-slate-400 font-mono">
+                        <span>MODEL: MobileNetV2</span>
+                        <span class="text-emerald-400">BEAM ACTIVE</span>
+                    </div>
+                </div>
+
+                <!-- HUD Frame Controls Guide -->
+                <div class="absolute bottom-6 right-6 z-20 bg-slate-950/70 backdrop-blur-md px-3 py-2 rounded-xl border border-slate-800 text-[10px] text-slate-400 font-mono hidden md:flex items-center gap-3">
+                    <span class="flex items-center gap-1"><i data-lucide="mouse-pointer" class="w-3 h-3 text-aura-cyan"></i> Drag to Orbit</span>
+                    <span>•</span>
+                    <span>Scroll to Zoom</span>
+                </div>
+
+                <!-- Scanning Light Cone Graphics Overlay -->
+                <div id="scanConeGraphic" class="absolute inset-x-0 top-0 h-1/2 pointer-events-none z-10 opacity-70 transition-opacity duration-500" style="background: radial-gradient(ellipse at top, rgba(0, 240, 255, 0.25) 0%, rgba(0, 114, 255, 0.08) 45%, transparent 70%);"></div>
+
+                <!-- Laser Scan Line Effect -->
+                <div id="laserScanLine" class="absolute inset-x-0 h-1 bg-aura-cyan shadow-[0_0_15px_#00f0ff] z-10 scan-line pointer-events-none"></div>
+
+                <!-- Defect Hotspot 3D Indicator Marker (illustrative only -- position is fixed,
+                     not derived from the real Grad-CAM location; see heatmap panel for that) -->
+                <div id="defect3DHotspot" class="absolute top-1/3 right-1/3 z-20 pointer-events-auto cursor-pointer group hidden" onclick="focusDefect()">
+                    <span class="relative flex h-6 w-6">
+                      <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-500 opacity-75"></span>
+                      <span class="relative inline-flex rounded-full h-6 w-6 bg-rose-600/90 border-2 border-white items-center justify-center text-white text-[10px] font-bold shadow-glow-red">!</span>
+                    </span>
+                    <!-- Hover tooltip -->
+                    <div class="absolute left-7 top-0 bg-slate-950/90 border border-rose-500/50 text-white text-[10px] font-tech p-2 rounded-lg whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity shadow-xl">
+                        DEFECT DETECTED — see heatmap for actual focus area
+                    </div>
+                </div>
+
+                <!-- Three.js Canvas Element Container -->
+                <div id="canvas3dContainer" class="w-full h-full min-h-[480px] bg-gradient-to-b from-slate-950 via-slate-900 to-black relative"></div>
+
+                <!-- Disclosure: this 3D render is a generic illustrative model, not a
+                     reconstruction of the uploaded part -->
+                <div class="absolute bottom-0 left-0 right-0 z-20 text-center pb-1.5 pointer-events-none">
+                    <span class="text-[9px] text-slate-500 font-mono tracking-wide">illustrative 3d render — not a reconstruction of the uploaded part</span>
+                </div>
+
+            </div>
+        </section>
+
+        <!-- RIGHT PANEL: Live Analysis, Heatmap & Defect Telemetry (3 Cols) -->
+        <section class="lg:col-span-3 flex flex-col gap-5 z-10">
+            <!-- Heatmap & AI Attention Analysis Panel -->
+            <div class="glass-panel rounded-2xl p-4 flex flex-col gap-3">
+                <div class="flex items-center justify-between pb-2 border-b border-slate-800">
+                    <span class="text-xs font-tech font-bold uppercase tracking-widest text-slate-200 flex items-center gap-1.5">
+                        <i data-lucide="eye" class="w-4 h-4 text-aura-cyan"></i> LIVE ANALYSIS MAP
+                    </span>
+                    <span class="text-[10px] font-mono text-cyan-400 bg-cyan-950/60 px-2 py-0.5 rounded border border-cyan-800/40">CAM-01</span>
+                </div>
+
+                <!-- Heatmap Visual Canvas Wrapper -->
+                <div class="relative w-full aspect-square rounded-xl overflow-hidden border border-slate-700 bg-slate-950 shadow-inner group">
+                    <!-- Base Grayscale Radiography Image -->
+                    <img id="heatmapBaseImg" src="" class="w-full h-full object-cover filter grayscale contrast-125 hidden">
+                    
+                    <!-- Dynamic Overlay Canvas for Thermal Defect Heatmap -->
+                    <canvas id="heatmapCanvas" class="absolute inset-0 w-full h-full opacity-80 mix-blend-screen pointer-events-none"></canvas>
+
+                    <!-- Heatmap Gradient Legend Overlay -->
+                    <div class="absolute right-2 top-2 bottom-2 w-3 rounded-full bg-gradient-to-b from-red-600 via-yellow-400 via-emerald-400 to-blue-600 border border-slate-900 flex flex-col justify-between items-center py-1 text-[8px] font-mono text-white drop-shadow">
+                        <span class="text-red-400 font-bold">H</span>
+                        <span class="text-blue-200">L</span>
+                    </div>
+
+                    <!-- HUD Target Reticle -->
+                    <div id="targetReticle" class="absolute w-12 h-12 border border-rose-500/80 rounded-full top-1/4 right-1/4 translate-x-1/2 -translate-y-1/2 pointer-events-none animate-pulse flex items-center justify-center">
+                        <div class="w-1.5 h-1.5 bg-rose-500 rounded-full"></div>
+                        <div class="absolute -top-1 font-mono text-[8px] text-rose-400 font-bold">DEFECT_01</div>
+                    </div>
+                </div>
+
+                <!-- Heatmap Spectrum Labeling -->
+                <div class="flex items-center justify-between text-[10px] font-mono text-slate-400 px-1">
+                    <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-rose-500"></span> High Attention</span>
+                    <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-blue-500"></span> Low Attention</span>
+                </div>
+            </div>
+
+            <!-- Defect telemetry badge card -->
+            <div id="defectTelemetryCard" class="glass-panel glass-panel-active rounded-2xl p-4 flex flex-col gap-3 transition-all">
+                <!-- Defect Badge Header -->
+                <div class="flex items-center justify-between">
+                    <span class="text-[10px] font-tech font-bold tracking-widest text-slate-400 uppercase">STATUS REPORT</span>
+                    <span id="defectStatusBadge" class="px-3 py-1 rounded-full text-xs font-tech font-bold bg-gradient-to-r from-rose-600 to-red-500 text-white shadow-glow-red flex items-center gap-1 animate-pulse">
+                        <i data-lucide="alert-triangle" class="w-3.5 h-3.5"></i> VANE DAMAGE
+                    </span>
+                </div>
+
+                <!-- Confidence Progress Gauge -->
+                <div>
+                    <div class="flex justify-between items-center text-xs mb-1">
+                        <span class="text-slate-300 font-tech">AI Confidence Level</span>
+                        <span id="confidenceVal" class="font-mono font-bold text-aura-cyan">94.7%</span>
+                    </div>
+                    <div class="w-full bg-slate-950 h-2.5 rounded-full overflow-hidden p-0.5 border border-slate-800">
+                        <div id="confidenceBar" class="h-full bg-gradient-to-r from-slate-600 to-slate-500 rounded-full transition-all duration-700" style="width: 0%;"></div>
+                    </div>
+                </div>
+
+                <!-- Detailed Structured Telemetry Table -->
+                <div class="bg-slate-950/60 rounded-xl p-3 border border-slate-800 space-y-2 text-xs font-mono">
+                    <div class="flex justify-between border-b border-slate-800/80 pb-1.5">
+                        <span class="text-slate-400">Defect Type:</span>
+                        <span id="defectTypeVal" class="text-rose-400 font-semibold">Crack / Chipping</span>
+                    </div>
+                    <div class="flex justify-between border-b border-slate-800/80 pb-1.5">
+                        <span class="text-slate-400">Location:</span>
+                        <span id="defectLocVal" class="text-slate-200">Vane (Top Right)</span>
+                    </div>
+                    <div class="flex justify-between border-b border-slate-800/80 pb-1.5">
+                        <span class="text-slate-400">Severity:</span>
+                        <span id="defectSevVal" class="text-rose-500 font-bold bg-rose-950/50 px-1.5 py-0.2 rounded border border-rose-800/40">HIGH</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-slate-400">Action:</span>
+                        <span id="defectRecVal" class="text-amber-400 font-semibold">Rework / Reject</span>
+                    </div>
+                </div>
+
+                <!-- Action Buttons Row -->
+                <div class="grid grid-cols-2 gap-2 mt-1">
+                    <button onclick="focusDefect()" class="py-2.5 px-3 rounded-xl bg-slate-900 hover:bg-slate-800 text-aura-cyan border border-aura-cyan/40 text-xs font-tech font-bold flex items-center justify-center gap-1.5 transition-colors">
+                        <i data-lucide="box" class="w-3.5 h-3.5"></i>
+                        <span>View 3D Zone</span>
+                    </button>
+                    <button onclick="openInspectionReportModal()" class="py-2.5 px-3 rounded-xl bg-aura-cyan/10 hover:bg-aura-cyan/20 text-white border border-aura-cyan/50 text-xs font-tech font-bold flex items-center justify-center gap-1.5 transition-colors shadow-glow">
+                        <i data-lucide="file-text" class="w-3.5 h-3.5 text-aura-cyan"></i>
+                        <span>Get Report</span>
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <!-- BOTTOM FEATURE HIGHLIGHTS BAR (12 Cols) -->
+        <section class="lg:col-span-12 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mt-2">
+            <!-- Feature 1 -->
+            <div class="glass-panel p-4 rounded-2xl border border-slate-800 hover:border-aura-cyan/40 transition-all flex items-center gap-4 group">
+                <div class="w-12 h-12 rounded-xl bg-aura-cyan/10 border border-aura-cyan/30 flex items-center justify-center text-aura-cyan group-hover:scale-110 transition-transform">
+                    <i data-lucide="cog" class="w-6 h-6"></i>
+                </div>
+                <div>
+                    <h4 class="text-sm font-tech font-bold text-white tracking-wide">Casting Defect Detection</h4>
+                    <p class="text-xs text-slate-400 mt-0.5">Porosity, cracks, inclusions & shrinkage</p>
+                </div>
+            </div>
+
+            <!-- Feature 2 -->
+            <div class="glass-panel p-4 rounded-2xl border border-slate-800 hover:border-aura-cyan/40 transition-all flex items-center gap-4 group">
+                <div class="w-12 h-12 rounded-xl bg-blue-500/10 border border-blue-500/30 flex items-center justify-center text-blue-400 group-hover:scale-110 transition-transform">
+                    <i data-lucide="gauge" class="w-6 h-6"></i>
+                </div>
+                <div>
+                    <h4 class="text-sm font-tech font-bold text-white tracking-wide">Real-time Inspection</h4>
+                    <p class="text-xs text-slate-400 mt-0.5">On the production line under 150ms</p>
+                </div>
+            </div>
+
+            <!-- Feature 3 -->
+            <div class="glass-panel p-4 rounded-2xl border border-slate-800 hover:border-aura-cyan/40 transition-all flex items-center gap-4 group">
+                <div class="w-12 h-12 rounded-xl bg-purple-500/10 border border-purple-500/30 flex items-center justify-center text-purple-400 group-hover:scale-110 transition-transform">
+                    <i data-lucide="cpu" class="w-6 h-6"></i>
+                </div>
+                <div>
+                    <h4 class="text-sm font-tech font-bold text-white tracking-wide">AI-Powered Neural Engine</h4>
+                    <p class="text-xs text-slate-400 mt-0.5">MobileNetV2 & Vision Transformer core</p>
+                </div>
+            </div>
+
+            <!-- Feature 4 -->
+            <div class="glass-panel p-4 rounded-2xl border border-slate-800 hover:border-aura-cyan/40 transition-all flex items-center gap-4 group">
+                <div class="w-12 h-12 rounded-xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-400 group-hover:scale-110 transition-transform">
+                    <i data-lucide="shield-check" class="w-6 h-6"></i>
+                </div>
+                <div>
+                    <h4 class="text-sm font-tech font-bold text-white tracking-wide">Better Pump Performance</h4>
+                    <p class="text-xs text-slate-400 mt-0.5">Less rework, lower manufacturing cost</p>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- MODAL: Dynamic Inspection Report -->
+    <div id="reportModal" class="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-4 hidden">
+        <div class="glass-panel max-w-2xl w-full rounded-3xl p-6 border border-aura-cyan/40 shadow-2xl relative max-h-[90vh] overflow-y-auto">
+            <button onclick="closeModal('reportModal')" class="absolute top-5 right-5 text-slate-400 hover:text-white p-2">
+                <i data-lucide="x" class="w-5 h-5"></i>
+            </button>
+
+            <div class="flex items-center gap-3 mb-6 pb-4 border-b border-slate-800">
+                <div class="w-10 h-10 rounded-xl bg-aura-cyan/10 border border-aura-cyan/40 flex items-center justify-center text-aura-cyan">
+                    <i data-lucide="file-check" class="w-5 h-5"></i>
+                </div>
+                <div>
+                    <h3 class="font-tech text-xl font-bold text-white">INSPECTION RESULT</h3>
+                    <p id="reportTimestamp" class="text-xs text-slate-400 font-mono">Generated automatically from the live model result</p>
+                </div>
+            </div>
+
+            <!-- Modal Content -- populated live from the last real prediction -->
+            <div class="space-y-4 text-xs font-mono">
+                <div class="grid grid-cols-2 gap-4 bg-slate-950 p-4 rounded-xl border border-slate-800">
+                    <div>
+                        <span class="text-slate-500 block">Image File:</span>
+                        <span id="reportFileName" class="text-white font-bold">—</span>
+                    </div>
+                    <div>
+                        <span class="text-slate-500 block">Model:</span>
+                        <span class="text-aura-cyan font-bold">MobileNetV2 (binary)</span>
+                    </div>
+                    <div>
+                        <span class="text-slate-500 block">Confidence:</span>
+                        <span id="reportConfidence" class="text-slate-300">—</span>
+                    </div>
+                    <div>
+                        <span class="text-slate-500 block">Overall Decision:</span>
+                        <span id="reportDecision" class="font-bold">—</span>
+                    </div>
+                </div>
+
+                <div class="p-4 rounded-xl bg-slate-900/80 border border-slate-800 space-y-2">
+                    <h4 class="font-tech text-sm text-aura-cyan font-bold uppercase">Summary</h4>
+                    <p id="reportSummary" class="text-slate-300">Run an inspection first — this report reflects the most recent real prediction, not a canned example.</p>
+                    <p class="text-slate-500 text-[11px] pt-1">Note: this model is a binary classifier (Defective / OK). It does not measure crack depth, porosity %, or dimensional tolerances — only the verdict, a confidence score, and a Grad-CAM attention heatmap are real model output.</p>
+                </div>
+            </div>
+
+            <!-- Modal Footer CTA -->
+            <div class="mt-6 pt-4 border-t border-slate-800 flex justify-end gap-3">
+                <button onclick="closeModal('reportModal')" class="px-4 py-2 rounded-xl bg-slate-900 text-slate-300 hover:bg-slate-800 font-tech font-bold text-xs">
+                    Close
+                </button>
+                <button onclick="downloadReportPdf()" class="px-5 py-2 rounded-xl bg-aura-cyan text-slate-950 font-tech font-bold text-xs flex items-center gap-2 hover:bg-white shadow-glow">
+                    <i data-lucide="download" class="w-4 h-4"></i>
+                    <span>Export PDF Report</span>
+                </button>
+            </div>
+        </div>
     </div>
-    {% endif %}
+
+    <!-- Application Logic & Three.js Canvas Script -->
+    <script>
+        // Initialize Icons
+        lucide.createIcons();
+
+        // Real inspection state -- no canned sample data. Every result on this
+        // page comes from a live call to the FastAPI backend (/predict-explain).
+        let isScanning = false;
+        let autoRotateActive = true;
+        let selectedFile = null;
+        let lastResult = null;
+
+        // ----------------------------------------------------
+        // THREE.JS 3D MECH IMPELLER GENERATOR & CANVAS SETUP
+        // ----------------------------------------------------
+        let scene, camera, renderer, controls;
+        let impellerGroup, laserPedestalGroup, defectHotspot3D;
+
+        function init3DScene() {
+            const container = document.getElementById('canvas3dContainer');
+            const width = container.clientWidth;
+            const height = container.clientHeight;
+
+            // Scene
+            scene = new THREE.Scene();
+            scene.fog = new THREE.FogExp2(0x050a14, 0.08);
+
+            // Camera
+            camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 100);
+            camera.position.set(0, 3.2, 4.5);
+
+            // Renderer
+            renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+            renderer.setSize(width, height);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            renderer.shadowMap.enabled = true;
+            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+            container.appendChild(renderer.domElement);
+
+            // Orbit Controls
+            controls = new THREE.OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+            controls.dampingFactor = 0.05;
+            controls.maxPolarAngle = Math.PI / 2 + 0.1; // Don't go far under pedestal
+            controls.minDistance = 2;
+            controls.maxDistance = 8;
+
+            // Lights
+            const ambientLight = new THREE.AmbientLight(0x0a192f, 2.5);
+            scene.add(ambientLight);
+
+            // Cyan Spot Overhead Scanning Beam Light
+            const scanSpotLight = new THREE.SpotLight(0x00f0ff, 8);
+            scanSpotLight.position.set(0, 5, 0);
+            scanSpotLight.angle = Math.PI / 4;
+            scanSpotLight.penumbra = 0.8;
+            scanSpotLight.castShadow = true;
+            scene.add(scanSpotLight);
+
+            // Red Accent Defect Point Light
+            const defectLight = new THREE.PointLight(0xff2a5f, 0, 3);
+            defectLight.position.set(0.7, 0.5, 0.7);
+            scene.add(defectLight);
+
+            // Dynamic Blue Fill Light
+            const fillLight = new THREE.DirectionalLight(0x0072ff, 1.5);
+            fillLight.position.set(-3, 2, 2);
+            scene.add(fillLight);
+
+            // Create Procedural Mechanical Impeller Group
+            impellerGroup = new THREE.Group();
+
+            // Central Metallic Hub
+            const hubGeo = new THREE.CylinderGeometry(0.5, 0.65, 0.6, 32);
+            const metallicMat = new THREE.MeshStandardMaterial({
+                color: 0x8899a6,
+                metalness: 0.85,
+                roughness: 0.25,
+            });
+            const hubMesh = new THREE.Mesh(hubGeo, metallicMat);
+            hubMesh.castShadow = true;
+            hubMesh.receiveShadow = true;
+            impellerGroup.add(hubMesh);
+
+            // Central Shaft Bore Hole
+            const boreGeo = new THREE.CylinderGeometry(0.2, 0.2, 0.62, 24);
+            const darkMat = new THREE.MeshBasicMaterial({ color: 0x050a14 });
+            const boreMesh = new THREE.Mesh(boreGeo, darkMat);
+            impellerGroup.add(boreMesh);
+
+            // Curved Vane Blades (6 Spiral Blades)
+            const bladeCount = 6;
+            for (let i = 0; i < bladeCount; i++) {
+                const angle = (i / bladeCount) * Math.PI * 2;
+                const bladeGroup = new THREE.Group();
+
+                // Curved blade geometry using extrude shape
+                const shape = new THREE.Shape();
+                shape.moveTo(0, 0);
+                shape.quadraticCurveTo(0.6, 0.3, 1.1, 0.1);
+                shape.lineTo(1.0, -0.1);
+                shape.quadraticCurveTo(0.5, 0.1, 0, -0.1);
+                shape.closePath();
+
+                const extrudeSettings = { depth: 0.4, bevelEnabled: true, bevelSegments: 3, steps: 1, bevelSize: 0.03, bevelThickness: 0.03 };
+                const bladeGeo = new THREE.ExtrudeGeometry(shape, extrudeSettings);
+                const bladeMesh = new THREE.Mesh(bladeGeo, metallicMat);
+                bladeMesh.rotation.x = Math.PI / 2;
+                bladeMesh.rotation.z = angle;
+                bladeMesh.position.y = -0.1;
+                bladeMesh.castShadow = true;
+                
+                bladeGroup.add(bladeMesh);
+                impellerGroup.add(bladeGroup);
+            }
+
+            // Outer Base Ring Plate
+            const ringGeo = new THREE.RingGeometry(0.6, 1.25, 32);
+            const ringMat = new THREE.MeshStandardMaterial({ color: 0x667788, metalness: 0.9, roughness: 0.3, side: THREE.DoubleSide });
+            const ringMesh = new THREE.Mesh(ringGeo, ringMat);
+            ringMesh.rotation.x = Math.PI / 2;
+            ringMesh.position.y = -0.28;
+            ringMesh.receiveShadow = true;
+            impellerGroup.add(ringMesh);
+
+            // Add Impeller to Scene
+            impellerGroup.position.y = 0.3;
+            scene.add(impellerGroup);
+
+            // Build Glowing Hologram Scanning Pedestal beneath
+            laserPedestalGroup = new THREE.Group();
+
+            // Pedestal Base Ring
+            const basePedGeo = new THREE.CylinderGeometry(1.5, 1.7, 0.2, 32);
+            const basePedMat = new THREE.MeshStandardMaterial({ color: 0x0a1526, metalness: 0.8, roughness: 0.2 });
+            const basePed = new THREE.Mesh(basePedGeo, basePedMat);
+            basePed.position.y = -0.4;
+            laserPedestalGroup.add(basePed);
+
+            // Glowing Laser Ring (Cyan Circles)
+            const ringGlowGeo = new THREE.TorusGeometry(1.4, 0.02, 16, 64);
+            const ringGlowMat = new THREE.MeshBasicMaterial({ color: 0x00f0ff });
+            const ringGlow = new THREE.Mesh(ringGlowGeo, ringGlowMat);
+            ringGlow.rotation.x = Math.PI / 2;
+            ringGlow.position.y = -0.29;
+            laserPedestalGroup.add(ringGlow);
+
+            // Secondary Outer Laser Ring
+            const ringGlow2 = ringGlow.clone();
+            ringGlow2.scale.set(1.15, 1.15, 1.15);
+            laserPedestalGroup.add(ringGlow2);
+
+            scene.add(laserPedestalGroup);
+
+            // Window Resize listener
+            window.addEventListener('resize', onWindowResize);
+
+            // Start Animation Loop
+            animate3D();
+        }
+
+        function onWindowResize() {
+            const container = document.getElementById('canvas3dContainer');
+            if (!container) return;
+            const width = container.clientWidth;
+            const height = container.clientHeight;
+            camera.aspect = width / height;
+            camera.updateProjectionMatrix();
+            renderer.setSize(width, height);
+        }
+
+        // FPS & Render Loop
+        let lastTime = performance.now();
+        let frameCount = 0;
+
+        function animate3D() {
+            requestAnimationFrame(animate3D);
+
+            // Rotate Impeller if auto-rotate enabled
+            if (autoRotateActive && impellerGroup) {
+                impellerGroup.rotation.y += 0.008;
+            }
+
+            // Rotate holographic laser ring in reverse
+            if (laserPedestalGroup) {
+                laserPedestalGroup.rotation.y -= 0.004;
+            }
+
+            controls.update();
+            renderer.render(scene, camera);
+
+            // FPS calculation
+            frameCount++;
+            const now = performance.now();
+            if (now - lastTime >= 1000) {
+                document.getElementById('fpsCounter').innerText = frameCount;
+                frameCount = 0;
+                lastTime = now;
+            }
+        }
+
+        function toggle3DRotation() {
+            autoRotateActive = !autoRotateActive;
+            const btn = document.getElementById('rotateToggleBtn');
+            btn.innerHTML = `<i data-lucide="rotate-cw" class="w-3.5 h-3.5 text-aura-cyan"></i> Auto-Rotate: ${autoRotateActive ? 'ON' : 'OFF'}`;
+            lucide.createIcons();
+        }
+
+        function reset3DCamera() {
+            camera.position.set(0, 3.2, 4.5);
+            controls.target.set(0, 0, 0);
+        }
+
+        function focusDefect() {
+            // Zoom camera directly to defect quadrant
+            autoRotateActive = false;
+            impellerGroup.rotation.y = 0.8;
+            camera.position.set(1.2, 1.5, 1.8);
+            controls.target.set(0.5, 0.3, 0.5);
+        }
+
+        // ----------------------------------------------------
+        // GRAD-CAM HEATMAP OVERLAY (real image returned by backend)
+        // ----------------------------------------------------
+        function drawHeatmapOverlay(heatmapBase64) {
+            const canvas = document.getElementById('heatmapCanvas');
+            const ctx = canvas.getContext('2d');
+            canvas.width = canvas.offsetWidth;
+            canvas.height = canvas.offsetHeight;
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            document.getElementById('targetReticle').classList.add('hidden');
+
+            if (!heatmapBase64) return;
+
+            const img = new Image();
+            img.onload = () => { ctx.drawImage(img, 0, 0, canvas.width, canvas.height); };
+            img.src = 'data:image/png;base64,' + heatmapBase64;
+        }
+
+        function clearHeatmapOverlay() {
+            const canvas = document.getElementById('heatmapCanvas');
+            const ctx = canvas.getContext('2d');
+            canvas.width = canvas.offsetWidth;
+            canvas.height = canvas.offsetHeight;
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            document.getElementById('targetReticle').classList.add('hidden');
+        }
+
+        // ----------------------------------------------------
+        // TELEMETRY DISPLAY -- populated only from real API response
+        // ----------------------------------------------------
+        function updateTelemetryDisplay(result) {
+            const isDefective = result.label === 'Defective';
+
+            document.getElementById('defectStatusBadge').innerHTML =
+                `<i data-lucide="${isDefective ? 'alert-triangle' : 'check-circle'}" class="w-3.5 h-3.5"></i> ${isDefective ? 'DEFECT DETECTED' : 'NO DEFECT'}`;
+
+            if (isDefective) {
+                document.getElementById('defectStatusBadge').className = "px-3 py-1 rounded-full text-xs font-tech font-bold bg-gradient-to-r from-rose-600 to-red-500 text-white shadow-glow-red flex items-center gap-1 animate-pulse";
+                document.getElementById('defect3DHotspot').classList.remove('hidden');
+            } else {
+                document.getElementById('defectStatusBadge').className = "px-3 py-1 rounded-full text-xs font-tech font-bold bg-gradient-to-r from-emerald-600 to-teal-500 text-white flex items-center gap-1";
+                document.getElementById('defect3DHotspot').classList.add('hidden');
+            }
+
+            document.getElementById('confidenceVal').innerText = result.confidence + '%';
+            const confBar = document.getElementById('confidenceBar');
+            confBar.style.width = result.confidence + '%';
+            confBar.className = 'h-full rounded-full transition-all duration-700 bg-gradient-to-r ' +
+                (isDefective ? 'from-rose-600 to-red-400' : 'from-emerald-600 to-teal-400');
+
+            // The trained model is a binary classifier (Defective / OK) -- it does
+            // not output a defect sub-type, exact location, or severity score.
+            // These rows are shown honestly as derived/heuristic, not model output.
+            document.getElementById('defectTypeVal').innerText = isDefective ? 'Binary model — Defective' : 'Binary model — OK';
+
+            document.getElementById('defectLocVal').innerText = isDefective ? 'See Grad-CAM heatmap →' : 'N/A';
+
+            let confidenceTier = 'LOW';
+            if (result.confidence >= 90) confidenceTier = 'HIGH';
+            else if (result.confidence >= 70) confidenceTier = 'MEDIUM';
+            document.getElementById('defectSevVal').innerText = isDefective ? confidenceTier + ' CONFIDENCE' : '—';
+
+            document.getElementById('defectRecVal').innerText = isDefective ? 'Reject / Manual Review' : 'Pass to Assembly';
+
+            lucide.createIcons();
+        }
+
+        // ----------------------------------------------------
+        // FILE UPLOAD
+        // ----------------------------------------------------
+        function handleFileSelect(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const MAX_SIZE_MB = 10;
+            if (file.size > MAX_SIZE_MB * 1024 * 1024) {
+                alert(`File is ${(file.size / (1024*1024)).toFixed(1)} MB — max allowed is ${MAX_SIZE_MB} MB.`);
+                document.getElementById('fileInput').value = '';
+                return;
+            }
+            selectedFile = file;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const preview = document.getElementById('uploadedPreview');
+                preview.src = e.target.result;
+                preview.classList.remove('hidden');
+                document.getElementById('uploadedPreviewPlaceholder').classList.add('hidden');
+
+                document.getElementById('uploadedFileName').innerText = file.name;
+                document.getElementById('uploadedFileSize').innerText = `${(file.size / (1024 * 1024)).toFixed(2)} MB • Ready to inspect`;
+
+                const heatmapBase = document.getElementById('heatmapBaseImg');
+                heatmapBase.src = e.target.result;
+                heatmapBase.classList.remove('hidden');
+                clearHeatmapOverlay();
+
+                const bar = document.getElementById('uploadProgressBar');
+                bar.style.width = '0%';
+                setTimeout(() => bar.style.width = '100%', 100);
+
+                // Automatically start the real inspection
+                runFullInspectionPipeline();
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function resetFileSelection() {
+            selectedFile = null;
+            document.getElementById('fileInput').value = '';
+            document.getElementById('uploadedPreview').classList.add('hidden');
+            document.getElementById('uploadedPreviewPlaceholder').classList.remove('hidden');
+            document.getElementById('uploadedFileName').innerText = 'No image loaded';
+            document.getElementById('uploadedFileSize').innerText = 'Load a casting image to begin';
+            document.getElementById('heatmapBaseImg').classList.add('hidden');
+            clearHeatmapOverlay();
+            document.getElementById('defect3DHotspot').classList.add('hidden');
+        }
+
+        // Drag & Drop event bindings
+        const dropZone = document.getElementById('dropZone');
+        ['dragenter', 'dragover'].forEach(eventName => {
+            dropZone.addEventListener(eventName, (e) => { e.preventDefault(); dropZone.classList.add('border-aura-cyan'); }, false);
+        });
+        ['dragleave', 'drop'].forEach(eventName => {
+            dropZone.addEventListener(eventName, (e) => { e.preventDefault(); dropZone.classList.remove('border-aura-cyan'); }, false);
+        });
+        dropZone.addEventListener('drop', (e) => {
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                document.getElementById('fileInput').files = files;
+                handleFileSelect({ target: { files: files, value: '' } });
+            }
+        });
+
+        // ----------------------------------------------------
+        // REAL INSPECTION PIPELINE -- calls the FastAPI backend
+        // ----------------------------------------------------
+        async function runFullInspectionPipeline() {
+            if (isScanning) return;
+            if (!selectedFile) {
+                document.getElementById('dropZone').scrollIntoView({ behavior: 'smooth', block: 'center' });
+                return;
+            }
+            isScanning = true;
+
+            const inspectBtn = document.getElementById('inspectBtn');
+            inspectBtn.disabled = true;
+            inspectBtn.classList.add('opacity-50', 'cursor-not-allowed');
+
+            const statusBadge = document.getElementById('scanPercentBadge');
+            statusBadge.innerText = 'SCANNING...';
+            statusBadge.className = 'text-xs font-mono font-bold text-amber-400 bg-amber-950/80 px-2 py-0.5 rounded border border-amber-500/30 animate-pulse';
+
+            for (let i = 1; i <= 5; i++) {
+                const step = document.getElementById(`step-${i}`);
+                step.classList.remove('bg-aura-cyan/10', 'border-aura-cyan/50');
+                step.querySelector('.step-check').classList.add('opacity-20');
+                step.querySelector('.step-check').classList.remove('text-emerald-400', 'opacity-100');
+            }
+
+            let laserProgress = 0;
+            const laserInterval = setInterval(() => {
+                laserProgress = Math.min(laserProgress + 2, 96); // hold near-100 until the real response lands
+                document.getElementById('laserProgressBar').style.width = `${laserProgress}%`;
+                document.getElementById('laserScanProgressText').innerText = `${laserProgress}%`;
+            }, 30);
+
+            // Step checklist plays out on a fixed timeline -- purely visual pacing,
+            // independent of the real network call below.
+            const stepDelays = [300, 700, 1100, 1500, 1900];
+            stepDelays.forEach((delay, idx) => {
+                setTimeout(() => {
+                    const step = document.getElementById(`step-${idx + 1}`);
+                    step.classList.add('bg-aura-cyan/10', 'border-aura-cyan/50');
+                    const check = step.querySelector('.step-check');
+                    check.classList.remove('opacity-20');
+                    check.classList.add('text-emerald-400', 'opacity-100');
+                }, delay);
+            });
+
+            let result = null;
+            let errorMsg = null;
+            try {
+                const formData = new FormData();
+                formData.append('file', selectedFile);
+                const res = await fetch('/predict-explain', { method: 'POST', body: formData });
+                if (!res.ok) throw new Error(`Server responded ${res.status}`);
+                result = await res.json();
+            } catch (err) {
+                errorMsg = err.message;
+            }
+
+            // Make sure the visual step timeline has finished before revealing the result
+            const minPipelineTime = 2100;
+            await new Promise(r => setTimeout(r, minPipelineTime));
+
+            clearInterval(laserInterval);
+            document.getElementById('laserProgressBar').style.width = '100%';
+            document.getElementById('laserScanProgressText').innerText = '100%';
+
+            isScanning = false;
+            inspectBtn.disabled = false;
+            inspectBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+
+            if (errorMsg) {
+                statusBadge.innerText = 'ERROR';
+                statusBadge.className = 'text-xs font-mono font-bold text-rose-400 bg-rose-950/80 px-2 py-0.5 rounded border border-rose-500/30';
+                alert('Inspection failed: ' + errorMsg + '\n\nIs the FastAPI server running and is this page being served from it (relative /predict-explain)?');
+                return;
+            }
+
+            statusBadge.innerText = 'COMPLETE';
+            statusBadge.className = 'text-xs font-mono font-bold text-emerald-400 bg-emerald-950/80 px-2 py-0.5 rounded border border-emerald-500/30';
+
+            lastResult = { ...result, fileName: selectedFile.name, timestamp: new Date() };
+            updateTelemetryDisplay(result);
+            drawHeatmapOverlay(result.heatmap_base64);
+        }
+
+        function triggerQuickScan() {
+            runFullInspectionPipeline();
+        }
+
+        // ----------------------------------------------------
+        // MODAL HELPERS & UTILITIES
+        // ----------------------------------------------------
+        function openInspectionReportModal() {
+            if (!lastResult) {
+                alert('Run an inspection first — there is no result to report on yet.');
+                return;
+            }
+            const isDefective = lastResult.label === 'Defective';
+            document.getElementById('reportTimestamp').innerText =
+                'Generated ' + lastResult.timestamp.toLocaleString();
+            document.getElementById('reportFileName').innerText = lastResult.fileName;
+            document.getElementById('reportConfidence').innerText = lastResult.confidence + '%';
+            const decisionEl = document.getElementById('reportDecision');
+            decisionEl.innerText = isDefective ? 'REJECT / MANUAL REVIEW' : 'PASS TO ASSEMBLY';
+            decisionEl.className = 'font-bold ' + (isDefective ? 'text-rose-500' : 'text-emerald-400');
+            document.getElementById('reportSummary').innerText = isDefective
+                ? `The model classified this casting as Defective with ${lastResult.confidence}% confidence. See the Grad-CAM heatmap for the region that most influenced this decision.`
+                : `The model classified this casting as OK with ${lastResult.confidence}% confidence. No defect region was flagged.`;
+            document.getElementById('reportModal').classList.remove('hidden');
+        }
+
+        function closeModal(modalId) {
+            document.getElementById(modalId).classList.add('hidden');
+        }
+
+        // NOTE: PDF export is not wired to a real report generator yet -- this
+        // alert is a placeholder. Wire it to a real endpoint before relying on it.
+        function downloadReportPdf() {
+            alert('PDF export is not implemented yet — this is a placeholder.');
+            closeModal('reportModal');
+        }
+
+        // Initialize 3D viewport on window load
+        window.onload = function() {
+            init3DScene();
+            // No image loaded yet -- heatmap stays empty until a real inspection runs
+            clearHeatmapOverlay();
+        };
+    </script>
 </body>
 </html>

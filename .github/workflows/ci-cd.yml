@@ -1,0 +1,50 @@
+name: CI/CD - Build and Push Docker Image
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+
+      - name: Install dependencies
+        run: pip install --default-timeout=300 --retries 10 -r requirements.txt
+
+      - name: Smoke test - model loads and predicts
+        run: |
+          python -c "
+          from tensorflow.keras.models import load_model
+          import numpy as np
+          model = load_model('artifacts/defect_model.h5')
+          dummy = np.random.rand(1, 224, 224, 3)
+          pred = model.predict(dummy, verbose=0)
+          assert pred.shape == (1, 1), 'Unexpected output shape'
+          print('Model smoke test passed')
+          "
+
+  build-and-push:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build and push image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: ${{ secrets.DOCKERHUB_USERNAME }}/defect-detection:latest

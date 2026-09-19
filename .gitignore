@@ -2,6 +2,9 @@ venv/
 tf_env/
 __pycache__/
 *.pyc
+
 data/casting_data/
+artifacts/predictions.db
 logs/
 .vscode/
+.DS_Store
